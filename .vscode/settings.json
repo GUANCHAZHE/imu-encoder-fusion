@@ -64,5 +64,6 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "bit": "cpp"
-    }
+    },
+    "python.analysis.autoImportCompletions": true
 }
