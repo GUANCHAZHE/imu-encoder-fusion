@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <iostream>
-
+// TODO: remove opencv dependency
 #include <opencv2/opencv.hpp>
 
 #include <chrono>
@@ -23,7 +23,7 @@ int main()
 	time_stamp::Synchronize sync;
 
 	ekf::DataRead data_read;
-	data_read.openFile( "../../data/imu_encoder_file.txt" );
+	data_read.openFile( "data/imu_encoder_file.txt" );
 	
 	double pre_time = 0;
 	bool is_init = false;

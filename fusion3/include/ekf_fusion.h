@@ -1,5 +1,5 @@
 #ifndef __EKF_FUSION_H
-#define __EKF_FUISION_H
+#define __EKF_FUSION_H
 
 #include <iostream>
 #include <Eigen/Dense>
