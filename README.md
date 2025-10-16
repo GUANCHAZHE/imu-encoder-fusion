@@ -9,7 +9,10 @@
 
 # 数据格式如下
 fusion4_improve/data/10_small_sad.txt      sad的数据集
-格式   ODOM time l r
+格式   
+ODOM time                l r
+ODOM 1624426287.29101515 0 0
+
 fusion4_improve/data/odom_data.txt         马尔科夫的真值数据
 格式   odom x y ？
 fusion4_improve/data/odom_pose_output.txt  融合结果的数据

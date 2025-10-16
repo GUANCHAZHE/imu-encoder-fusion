@@ -20,7 +20,7 @@ import numpy as np
 
 N_encoder = 1024.0  # 编码器每圈脉冲数
 r_circle = 0.155    # 轮子半径 m
-l =  0.9            # 车间距在角度的时候需要 m
+l =  0.9            # 车轮间距 m
 
 l_pulse = []
 r_pulse = []
@@ -35,8 +35,8 @@ xita = []
 # 转换sad格式的数据
 def data_convert():
     path_sad = "fusion4_improve/data/10_small_sad.txt"
-    path_output = "fusion4_improve/data/10_small_converted.txt"
-
+    path_output = "fusion4_improve/data/10_small_output_converted.txt"
+    path_odom = "fusion4_improve/data/10_small_odom.txt"
     # 读取相关的数据保存为列表
     with open(path_sad, 'r') as f, open(path_output, 'w') as fout:
         for lines in f:
@@ -74,16 +74,21 @@ def data_convert():
     # 将delta_s delta_xita 转换为 pose [x y xita]
     pose = [0.0, 0.0, 0.0]
     pose_pre = [0.0, 0.0, 0.0]
-    for i in range(len(delta_s)):
-        pose[0] = pose_pre[0] + delta_s[i] * np.cos(pose_pre[2] + delta_xita[i] / 2.0)
-        pose[1] = pose_pre[1] + delta_s[i] * np.sin(pose_pre[2] + delta_xita[i] / 2.0)
-        pose[2] = pose_pre[2] + delta_xita[i]
 
-        x.append(pose[0])
-        y.append(pose[1])
-        xita.append(pose[2])
+    with open(path_odom, 'w') as fout:
+        for i in range(len(delta_s)):
+            pose[0] = pose_pre[0] + delta_s[i] * np.cos( pose_pre[2] )
+            pose[1] = pose_pre[1] + delta_s[i] * np.sin( pose_pre[2] )
+            pose[2] = pose_pre[2] + delta_xita[i]
 
-        pose_pre = pose.copy()
+            x.append(pose[0])
+            y.append(pose[1])
+            xita.append(pose[2])
+
+            pose_pre = pose.copy()
+
+            fout.write(f"0.0 {pose[0]} {pose[1]} {pose[2]}\n")
+        fout.close()
     print(f"数据转换完成，结果保存在 {path_output} 中")
 
     plt.plot(x, y)
@@ -94,79 +99,79 @@ def data_convert():
     plt.grid()
     plt.show()
 
-def run(data_path: str):
-    if not os.path.isfile(data_path):
-        print(f"Failed to open the simulation file: {data_path}")
-        return 1
+# def run(data_path: str):
+#     if not os.path.isfile(data_path):
+#         print(f"Failed to open the simulation file: {data_path}")
+#         return 1
 
-    print(f"Reading data from: {data_path}")
+#     print(f"Reading data from: {data_path}")
     
-    # image setup (same size as C++ version)
-    # create blank image directly (900x900, 3 channels)
-    image = np.zeros((900, 900, 3), dtype=np.uint8)
+#     # image setup (same size as C++ version)
+#     # create blank image directly (900x900, 3 channels)
+#     image = np.zeros((900, 900, 3), dtype=np.uint8)
 
-    # draw origin
-    cv2.circle(image, (450, 450), 3, (0, 0, 255), -1)
+#     # draw origin
+#     cv2.circle(image, (450, 450), 3, (0, 0, 255), -1)
 
-    cv2.namedWindow('trajectory', cv2.WINDOW_NORMAL)
-    cv2.imshow('trajectory', image)
-    cv2.waitKey(1)
+#     cv2.namedWindow('trajectory', cv2.WINDOW_NORMAL)
+#     cv2.imshow('trajectory', image)
+#     cv2.waitKey(1)
 
-    count = 0
+#     count = 0
 
-    try:
-        with open(data_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
+#     try:
+#         with open(data_path, 'r') as f:
+#             for line in f:
+#                 line = line.strip()
+#                 if not line:
+#                     continue
 
-                toks = line.split()
-                # original C++ reads first token then reads two tokens into pose[0], pose[1]
-                if len(toks) < 3:
-                    continue
+#                 toks = line.split()
+#                 # original C++ reads first token then reads two tokens into pose[0], pose[1]
+#                 if len(toks) < 3:
+#                     continue
 
-                # parse x, y from tokens[1], tokens[2]
-                try:
-                    x = float(toks[1])
-                    y = float(toks[2])
-                except ValueError:
-                    # skip malformed lines
-                    continue
+#                 # parse x, y from tokens[1], tokens[2]
+#                 try:
+#                     x = float(toks[1])
+#                     y = float(toks[2])
+#                 except ValueError:
+#                     # skip malformed lines
+#                     continue
 
-                # print(f"frame: {count}, x = {x}, y = {y}")
+#                 # print(f"frame: {count}, x = {x}, y = {y}")
 
-                px = int(round(800 - x * 15))
-                py = int(round(450 - y * 15))
+#                 px = int(round(800 - x * 15))
+#                 py = int(round(450 - y * 15))
 
-                # bound check
-                if 0 <= px < image.shape[1] and 0 <= py < image.shape[0]:
-                    cv2.circle(image, (px, py), 1, (0, 255, 0), -1)
+#                 # bound check
+#                 if 0 <= px < image.shape[1] and 0 <= py < image.shape[0]:
+#                     cv2.circle(image, (px, py), 1, (0, 255, 0), -1)
 
-                cv2.imshow('trajectory', image)
-                # wait 10 ms like C++
-                key = cv2.waitKey(10) & 0xFF
-                if key == 27:  # ESC to exit early
-                    break
+#                 cv2.imshow('trajectory', image)
+#                 # wait 10 ms like C++
+#                 key = cv2.waitKey(10) & 0xFF
+#                 if key == 27:  # ESC to exit early
+#                     break
 
-                count += 1
+#                 count += 1
 
-    except Exception as e:
-        print('Error while reading file:', e)
-        return 2
+#     except Exception as e:
+#         print('Error while reading file:', e)
+#         return 2
 
-    # final pause
-    cv2.waitKey(0)
-    return 0
+#     # final pause
+#     cv2.waitKey(0)
+#     return 0
 
 
-def parse_args():
-    path_test = "/home/keyirobot/Desktop/qixing_ws/learn/imu-wheel/imu_encoder_fusion/fusion4_improve/data/odom_pose_output.txt"
-    ap = argparse.ArgumentParser()
-    ap.add_argument('datafile', nargs='?', default='data/odom_data.txt', help='path to odom_data.txt')
-    # ap.add_argument('datafile', nargs='?', default=path_test, help='path to odom_data.txt')
+# def parse_args():
+#     path_test = "/home/keyirobot/Desktop/qixing_ws/learn/imu-wheel/imu_encoder_fusion/fusion4_improve/data/odom_pose_output.txt"
+#     ap = argparse.ArgumentParser()
+#     ap.add_argument('datafile', nargs='?', default='data/odom_data.txt', help='path to odom_data.txt')
+#     # ap.add_argument('datafile', nargs='?', default=path_test, help='path to odom_data.txt')
     
-    return ap.parse_args()
+#     return ap.parse_args()
 
 
 if __name__ == '__main__':
