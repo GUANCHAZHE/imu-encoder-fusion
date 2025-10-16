@@ -52,9 +52,9 @@ class ESKF:
         print("start predict")
 
         ## 1 根据运动方程 预测状态 轮速的割线模型
-        # xk = xk-1 + del_s * cos (theta_k-1 + 0.5 *del_theta_k-1)
+        # xk = xk-1 + del_s * cos (theta_k-1 + 0.5 * del_theta_k-1)
         self.x_new[0] = self.x[0] + u_now[0] * np.cos(self.x[2] + 0.5 *u_now[1])
-        # yk = yk-1 + del_s * sin (theta_k-1 + 0.5 *del_theta_k-1)
+        # yk = yk-1 + del_s * sin (theta_k-1 + 0.5 * del_theta_k-1)
         self.x_new[1] = self.x[1] + u_now[0] * np.sin(self.x[2] + 0.5 *u_now[1])
         # theta_k = theta_k-1 + del_theta_k-1
         self.x_new[2] = self.x[2] + u_now[1]

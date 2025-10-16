@@ -1,5 +1,16 @@
+#!/usr/bin/env python3
+"""
+读取相关的文件画出轨迹
+
+用法：
+python3 encoder_only.py
+"""
 import cv2
 import numpy as np
+
+
+# encoder 时间戳
+# encoder time ? s θ ？
 
 def main():
     image = np.zeros((700 , 1500, 3), dtype=np.uint8)  # 画布大小，宽高反的

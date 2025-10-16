@@ -48,11 +48,11 @@ int main()
                 
 			double now_time = encoder_data(0);
 		        if( is_init == false ) {
-                                pre_time = now_time;
-				pre_gz = imu_nearest(3);
-				is_init = true;
-                                continue;
-                        }
+        	        pre_time = now_time;
+					pre_gz = imu_nearest(3);
+					is_init = true;
+					continue;
+		}
 
 			Eigen::Matrix<double, 2, 1> u( encoder_data(2), encoder_data(3) );
 			ekf.predict( u );
