@@ -40,10 +40,22 @@
                     "ignoreFailures": true
                 }
             ]
+        },
+                // <<<--- 在这里添加新的 Python 配置 --->>>
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",  // 这会运行当前打开的 Python 文件
+            "console": "integratedTerminal", // 在 VS Code 内部终端运行
+            "stopOnEntry": false, // 是否在程序入口处暂停
+            "args": [], // 传递给 Python 程序的参数，可以为空
+            "cwd": "${fileDirname}", // 设置工作目录为文件所在目录
+            "env": {}, // 环境变量，可以为空
+            "envFile": "${workspaceFolder}/.env", // 可选：加载 .env 文件
+            "justMyCode": true // 是否只调试用户代码（跳过标准库）
         }
-    ]
-
-    ,
+    ],
     "inputs": [
         {
             "type": "promptString",

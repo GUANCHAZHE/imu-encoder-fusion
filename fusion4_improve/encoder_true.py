@@ -20,8 +20,8 @@ import numpy as np
 
 N_encoder = 1024.0  # 编码器每圈脉冲数
 r_circle = 0.155    # 轮子半径 m
-l =  0.9            # 车轮间距 m
-
+# l =  0.9            # 车轮间距 m github老哥给出的结果 验证结果不太对
+l = 0.01            # 通过compute_l.py计算得到的轮间距
 l_pulse = []
 r_pulse = []
 s_lpulse = []
