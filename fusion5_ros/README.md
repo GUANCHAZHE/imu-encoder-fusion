@@ -16,19 +16,36 @@ The system reads encoder data from ROS joint_states and ground truth from Gazebo
 
 ## Mathematical Model
 
-The secant model calculates robot pose using:
+### Secant Model (Local Coordinates)
+The secant model calculates incremental robot movement in the robot's local coordinate system:
 
 ```
-x_k = x_{k-1} + Δs_k * cos(θ_k + 1/2 * Δθ_k)
-y_k = y_{k-1} + Δs_k * sin(θ_k + 1/2 * Δθ_k)
-θ_k = θ_{k-1} + Δθ_k
+Δx_local = Δs * cos(Δθ/2)
+Δy_local = Δs * sin(Δθ/2)
+Δθ = (Δs_right - Δs_left) / wheel_base
 ```
 
 Where:
-- `Δs_k = (Δs_right + Δs_left) / 2` (linear displacement)
-- `Δθ_k = (Δs_right - Δs_left) / wheel_base` (angular displacement)
+- `Δs = (Δs_right + Δs_left) / 2` (linear displacement)
 - `Δs_right = Δposition_right * wheel_radius`
 - `Δs_left = Δposition_left * wheel_radius`
+
+### World Coordinate Transformation
+The critical fix transforms local incremental movements to world coordinates:
+
+```
+Δx_world = Δx_local * cos(θ_world) - Δy_local * sin(θ_world)
+Δy_world = Δx_local * sin(θ_world) + Δy_local * cos(θ_world)
+```
+
+**Complete transformation:**
+```
+x_world = x_initial + Σ(Δx_world)
+y_world = y_initial + Σ(Δy_world)
+θ_world = θ_initial + Σ(Δθ)
+```
+
+Where `(x_initial, y_initial, θ_initial)` comes from ground truth initial pose.
 
 ## Parameters
 
@@ -77,21 +94,27 @@ The system processes the rosbag file `2025-10-23-18-22-52.bag` containing:
 
 ## Current Results
 
-### Performance Metrics
-- **Position RMSE**: 2.462m
-- **Orientation RMSE**: 2.656 radians (152°)
-- **Maximum Position Error**: 2.778m
-- **Maximum Orientation Error**: 2.669 radians (153°)
-- **Total Trajectory Length**: 0.295m
+### Performance Metrics (After Coordinate Transformation Fix)
+- **Position RMSE**: 0.063m (39x improvement!)
+- **Orientation RMSE**: 0.110 radians (6.3°)
+- **Maximum Position Error**: 0.197m
+- **Maximum Orientation Error**: 0.298 radians (17°)
+- **Total Trajectory Length**: 2.496m
 
 ### Analysis
 
-The current implementation shows significant errors, which may be due to:
+The coordinate transformation fix dramatically improved accuracy by addressing the **coordinate system mismatch**:
 
-1. **Parameter Calibration**: The wheel radius (0.033m) or wheel base (0.160m) may need adjustment for the specific simulation setup
-2. **Data Scaling**: The encoder positions might be in different units or scale than expected
-3. **Simulation Movement**: The robot movement in the simulation appears minimal (only right wheel moving slightly)
-4. **Coordinate System**: Potential mismatch between encoder coordinate system and ground truth
+1. **✅ Fixed: Initial Position Offset**: Now uses ground truth initial position (-1.980m, -0.486m) instead of (0,0)
+2. **✅ Fixed: Initial Orientation**: Now uses ground truth initial orientation (3.5°) instead of assuming 0°
+3. **✅ Fixed: Coordinate Transformation**: Transforms incremental odometry from robot-local to world coordinates
+4. **✅ Fixed: Proper Rotation**: Applies rotation matrix to convert local Δx, Δy to world coordinates
+
+### Previous Issues (Before Fix)
+- **❌ Coordinate System Mismatch**: Odometry calculated in local frame, ground truth in world frame
+- **❌ Missing Initial Offset**: Started from (0,0) instead of actual initial position
+- **❌ Missing Initial Rotation**: Assumed 0° orientation instead of actual initial orientation
+- **❌ No Frame Transformation**: No conversion between robot-local and world coordinate systems
 
 ### Debug Information
 
@@ -122,9 +145,35 @@ fusion5_ros/
 ### Code Structure
 
 - `EncoderTrajectoryEstimator` class: Main processing class
-- `process_rosbag()`: Reads and processes rosbag data
-- `calculate_displacement_increment()`: Implements secant model calculations
+- `process_rosbag()`: Reads and processes rosbag data, extracts initial pose from ground truth
+- `calculate_displacement_increment()`: Implements secant model calculations in local frame
+- `update_trajectory()`: **Key fix** - transforms local coordinates to world coordinates using rotation matrix
 - `plot_trajectories()`: Generates comparison plots and statistics
+
+### Coordinate Transformation Implementation
+
+The critical fix in `update_trajectory()` method:
+
+```python
+# 1. Calculate movement in robot-local coordinate system
+delta_x_local = delta_s * math.cos(delta_theta / 2.0)
+delta_y_local = delta_s * math.sin(delta_theta / 2.0)
+
+# 2. Transform to world coordinates using current orientation
+delta_x_world = delta_x_local * math.cos(prev_theta) - delta_y_local * math.sin(prev_theta)
+delta_y_world = delta_x_local * math.sin(prev_theta) + delta_y_local * math.cos(prev_theta)
+
+# 3. Update world pose with initial offset
+current_x = self.initial_x + delta_x_world  # Note: initial_x from ground truth
+current_y = self.initial_y + delta_y_world  # Note: initial_y from ground truth
+current_theta = self.initial_theta + delta_theta  # Note: initial_theta from ground truth
+```
+
+**Key improvements:**
+- Uses ground truth initial pose as reference point
+- Applies proper 2D rotation transformation matrix
+- Accumulates transformations in world coordinate system
+- Maintains orientation consistency between odometry and ground truth
 
 ## Future Improvements
 

@@ -35,16 +35,23 @@ class EncoderTrajectoryEstimator:
         self.timestamps = []
 
         # Robot state
-        self.current_pose = [0.0, 0.0, 0.0]  # [x, y, theta]
+        self.current_pose = [0.0, 0.0, 0.0]  # [x, y, theta] - world coordinates
         self.previous_positions = None
         self.last_wheel_positions = None  # Store last wheel positions for incremental calculation
+
+        # Initial pose from ground truth (world coordinates)
+        self.initial_x = 0.0
+        self.initial_y = 0.0
+        self.initial_theta = 0.0
 
         # Data storage
         self.joint_data = []
         self.ground_truth_data = []
 
         # Rosbag file
-        self.bag_file = "2025-10-23-18-22-52.bag"
+        # self.bag_file = "2025-10-23-18-22-52.bag"
+        self.bag_file = "2025-10-24-10-34-42.bag"
+
 
     def quaternion_to_yaw(self, qx, qy, qz, qw):
         """Convert quaternion to yaw angle using manual calculation"""
@@ -72,26 +79,30 @@ class EncoderTrajectoryEstimator:
         return delta_s, delta_theta
 
     def update_trajectory(self, delta_s, delta_theta, timestamp):
-        """Update trajectory using secant model formula"""
+        """Update trajectory using secant model formula with world coordinate transformation"""
         if len(self.encoder_trajectory) == 0:
-            # First point
-            self.encoder_trajectory.append([0.0, 0.0, 0.0])
+            # First point - use initial pose from ground truth
+            self.encoder_trajectory.append([self.initial_x, self.initial_y, self.initial_theta])
             self.timestamps.append(timestamp)
             return
 
-        # Get previous pose
+        # Get previous pose (world coordinates)
         prev_x, prev_y, prev_theta = self.encoder_trajectory[-1]
 
-        # Secant model formula:
-        # x_k = x_{k-1} + Δs_k * cos(θ_k + 1/2 * Δθ_k)
-        # y_k = y_{k-1} + Δs_k * sin(θ_k + 1/2 * Δθ_k)
-        # θ_k = θ_{k-1} + Δθ_k
+        # Calculate incremental movement in robot-local coordinate system
+        # This is the movement relative to the robot's current orientation
+        delta_x_local = delta_s * math.cos(delta_theta / 2.0)
+        delta_y_local = delta_s * math.sin(delta_theta / 2.0)
 
+        # Transform from robot-local coordinates to world coordinates
+        # using the current world orientation
+        delta_x_world = delta_x_local * math.cos(prev_theta) - delta_y_local * math.sin(prev_theta)
+        delta_y_world = delta_x_local * math.sin(prev_theta) + delta_y_local * math.cos(prev_theta)
+
+        # Update world coordinates
+        current_x = prev_x + delta_x_world
+        current_y = prev_y + delta_y_world
         current_theta = prev_theta + delta_theta
-        avg_theta = prev_theta + 0.5 * delta_theta
-
-        current_x = prev_x + delta_s * math.cos(avg_theta)
-        current_y = prev_y + delta_s * math.sin(avg_theta)
 
         self.encoder_trajectory.append([current_x, current_y, current_theta])
         self.timestamps.append(timestamp)
@@ -121,6 +132,19 @@ class EncoderTrajectoryEstimator:
         # Sort by timestamp
         joint_messages.sort(key=lambda x: x[0])
         ground_truth_messages.sort(key=lambda x: x[0])
+
+        # Get initial pose from ground truth (first message)
+        if ground_truth_messages:
+            first_gt = ground_truth_messages[0][1]
+            if len(first_gt.name) > 2 and 'turtlebot3_burger' in first_gt.name[2]:
+                initial_pose = first_gt.pose[2]
+                self.initial_x = initial_pose.position.x
+                self.initial_y = initial_pose.position.y
+                self.initial_theta = self.quaternion_to_yaw(
+                    initial_pose.orientation.x, initial_pose.orientation.y,
+                    initial_pose.orientation.z, initial_pose.orientation.w
+                )
+                print(f"Initial pose from ground truth: x={self.initial_x:.3f}m, y={self.initial_y:.3f}m, θ={np.degrees(self.initial_theta):.1f}°")
 
         # Process joint states
         for timestamp, joint_msg in joint_messages:
